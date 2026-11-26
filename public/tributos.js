@@ -105,9 +105,11 @@ export function calcOutros({ reais, natureza, cide = OUTROS.cide.pct, pis = OUTR
 }
 
 export const EXPORTACAO = [
-  { titulo: 'Rompex: NCM', texto: 'NCM 3824.99.79 (itens CA II e CA III da sua NF-e). Carga perigosa: ONU 3178, classe 4.1.', status: 'observado' },
+  { titulo: 'Rompex: NCM', texto: 'NCM 3824.99.79, nas suas NF-e de venda e de exportação ("Rompex Modelo VI … fragmentador de rochas"). Carga perigosa: ONU 3178, classe 4.1.', status: 'observado' },
   { titulo: 'IOF no recebimento da exportação', texto: 'Alíquota zero (Decreto 6.306/2007, art. 15-B, inciso I). Alcança exportação de bens e serviços.', status: 'texto', fontes: ['iof'] },
-  { titulo: 'IPI, ICMS, PIS e Cofins na exportação', texto: 'A regra geral é de imunidade ou não incidência na exportação de produtos industrializados. Não vi uma NF-e de exportação sua para confirmar o tratamento no seu caso.', status: 'confirmar' },
+  { titulo: 'ICMS, IPI, PIS e Cofins na sua exportação', texto: 'NF-e 4834 (Peru, CFOP 7101, 20/03/2026): ICMS "não tributado" (CF, art. 155, §2º, X, "a"), IPI imune (CF, art. 153, §3º, III) e PIS/Cofins zerados. É o que a nota mostra: créditos e benefícios (por exemplo, Reintegra) não aparecem nela.', status: 'observado' },
+  { titulo: 'Recebimento da exportação', texto: 'A NF-e está em reais, com prazo de 30 dias ("CREDPLUS"). Falta a invoice comercial em moeda estrangeira e o contrato de câmbio do recebimento para conferir a taxa e o IOF zero na prática.', status: 'confirmar' },
+  { titulo: 'Devolução de exportação', texto: 'NF-e de entrada 4851 (CFOP 3201, 24/03/2026) devolveu a NF 4760 do mesmo cliente do Peru, com todos os tributos zerados. O câmbio de uma devolução em moeda estrangeira (finalidade, IOF e IR) não foi pesquisado.', status: 'confirmar' },
   { titulo: 'Reintegra', texto: 'Devolução de resíduos tributários a exportadores, com alíquota entre 0,1% e 3% definida pelo Executivo (o STF discute a variação). A alíquota de 2026 e o direito da Lake ao benefício não foram confirmados.', status: 'confirmar', fontes: ['reintegra'] },
   { titulo: 'Imposto de importação nos países de destino', texto: 'Depende do país e do acordo comercial (Mercosul/ALADI) e costuma exigir certificado de origem. Ainda não pesquisei por país para o NCM 3824.99.79.', status: 'confirmar' },
 ];
