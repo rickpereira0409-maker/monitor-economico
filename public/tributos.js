@@ -87,11 +87,11 @@ export const OUTROS = {
   cide: { label: 'CIDE-Remessas', pct: 10, status: 'texto', fontes: ['cide', 'cideStf'], nota: '10% sobre remessas de royalties, serviços técnicos e assistência técnica/administrativa. O STF validou a cobrança em 2025 (Tema 914) e o CARF entende que incide mesmo sem transferência de tecnologia. Não costuma entrar na cotação do banco.' },
   pis: { label: 'PIS-Importação', pct: 1.65, status: 'texto', fontes: ['pisCofins'], nota: 'Na importação de serviço, a base inclui o ISS e as próprias contribuições; há decisão do TRF3 (2025) excluindo o ISS da base. Estimativa simplificada sobre o valor em reais.' },
   cofins: { label: 'Cofins-Importação', pct: 7.6, status: 'texto', fontes: ['pisCofins'], nota: 'Alguns casos têm 1 ponto adicional, sem crédito. No Lucro Real, PIS e Cofins-importação costumam gerar crédito (confirme).' },
-  iss: { label: 'ISS na importação de serviço', pct: 0, status: 'confirmar', fontes: [], nota: 'Devido ao município do tomador; alíquota entre 2% e 5%, definida pelo seu município. Informe a alíquota no campo.' },
+  iss: { label: 'ISS na importação de serviço', pct: 3, status: 'confirmar', fontes: [], nota: 'Devido ao município do tomador. Alíquota de 3% informada por você para o seu município; o limite legal geral é de 2% a 5%. Confirme com a prefeitura ou o contador.' },
 };
 
 /** Tributos que a EMPRESA apura (fora da cotação do banco), em estimativa simplificada sobre o valor em reais. */
-export function calcOutros({ reais, natureza, cide = OUTROS.cide.pct, pis = OUTROS.pis.pct, cofins = OUTROS.cofins.pct, iss = 0 }) {
+export function calcOutros({ reais, natureza, cide = OUTROS.cide.pct, pis = OUTROS.pis.pct, cofins = OUTROS.cofins.pct, iss = OUTROS.iss.pct }) {
   const n = NATUREZAS[natureza];
   if (!n) return null;
   const itens = [];

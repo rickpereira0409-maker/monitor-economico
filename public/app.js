@@ -528,7 +528,7 @@ async function viewSimulador(main) {
   const natSel = h('select', null, [['', 'Selecione a natureza'], ...Object.entries(NATUREZAS).map(([k, n]) => [k, n.label])].map(([v, l]) => h('option', { value: v }, l)));
   const sugestao = h('div', { class: 'small stack' });
   const incluirOutros = h('input', { type: 'checkbox', checked: true });
-  const cideIn = num(OUTROS.cide.pct), pisIn = num(OUTROS.pis.pct), cofinsIn = num(OUTROS.cofins.pct), issIn = num(0);
+  const cideIn = num(OUTROS.cide.pct), pisIn = num(OUTROS.pis.pct), cofinsIn = num(OUTROS.cofins.pct), issIn = num(OUTROS.iss.pct);
   const fonte = h('select', null);
   const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
   const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -711,7 +711,7 @@ async function viewSimulador(main) {
     h('div', { class: 'card stack' },
       h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
       h('div', { class: 'filters' }, field('País do fornecedor', paisSel), field('Natureza do pagamento', natSel)), sugestao,
-      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn), field('PIS-imp. (%)', pisIn), field('Cofins-imp. (%)', cofinsIn), field('ISS do município (%)', issIn, 'Entre 2% e 5%')),
+      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn), field('PIS-imp. (%)', pisIn), field('Cofins-imp. (%)', cofinsIn), field('ISS do município (%)', issIn, 'Informado: 3%')),
       h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
       h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,

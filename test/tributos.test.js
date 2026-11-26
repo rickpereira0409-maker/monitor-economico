@@ -59,7 +59,7 @@ test('entradas inválidas retornam null; toda combinação válida tem status e 
 });
 
 test('calcOutros: serviço técnico do Paraguai (R$ 17.314,05) tem CIDE, PIS e Cofins', () => {
-  const o = calcOutros({ reais: 17314.05, natureza: 'tecnico' });
+  const o = calcOutros({ reais: 17314.05, natureza: 'tecnico', iss: 0 });
   const v = Object.fromEntries(o.itens.map((i) => [i.id, i.valor]));
   assert.equal(v.cide, 1731.41); assert.equal(v.pis, 285.68); assert.equal(v.cofins, 1315.87);
   assert.equal(o.total, 3332.96);
@@ -78,6 +78,13 @@ test('calcOutros: outro serviço não paga CIDE; ISS entra quando informado; via
   assert.equal(calcOutros({ reais: 1, natureza: 'xyz' }), null);
 });
 
+test('ISS padrão de 3% (informado pelo usuário) entra em serviço, não em royalties nem viagem', () => {
+  const o = calcOutros({ reais: 17314.05, natureza: 'tecnico' });
+  assert.equal(o.itens.find((i) => i.id === 'iss').valor, 519.42);
+  assert.equal(o.total, 3852.38);
+  assert.equal(calcOutros({ reais: 1000, natureza: 'royalties' }).itens.some((i) => i.id === 'iss'), false);
+});
+
 test('alíquotas padrão dos outros tributos', () => {
-  assert.equal(OUTROS.cide.pct, 10); assert.equal(OUTROS.pis.pct, 1.65); assert.equal(OUTROS.cofins.pct, 7.6);
+  assert.equal(OUTROS.cide.pct, 10); assert.equal(OUTROS.pis.pct, 1.65); assert.equal(OUTROS.cofins.pct, 7.6); assert.equal(OUTROS.iss.pct, 3);
 });
