@@ -45,10 +45,13 @@ console.log('Configurações aplicadas:', applySettings(db, settings, now));
 
 // Carga de histórico: na primeira vez ou a cada 24 h
 const last = db.prepare("SELECT value FROM settings WHERE key = 'last_backfill'").get();
-if (!last || now - new Date(last.value) > 24 * 3600e3) {
+const BACKFILL_V = '2'; // 2 = PTAX de ~13 meses; subir o número força uma nova carga
+const ver = db.prepare("SELECT value FROM settings WHERE key = 'backfill_v'").get();
+if (!last || ver?.value !== BACKFILL_V || now - new Date(last.value) > 24 * 3600e3) {
   await step('fx_backfill', async () => {
-    const r = { mercado: await backfillMarket(db, 120, now), ptax: await collectPtax(db, 130, now) };
+    const r = { mercado: await backfillMarket(db, 120, now), ptax: await collectPtax(db, 400, now) }; // ~13 meses: permite usar a PTAX da data de invoices antigas
     db.prepare("INSERT INTO settings (key, value) VALUES ('last_backfill', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(now.toISOString());
+    db.prepare("INSERT INTO settings (key, value) VALUES ('backfill_v', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(BACKFILL_V);
     return r;
   });
 }

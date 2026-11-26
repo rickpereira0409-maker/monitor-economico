@@ -1,6 +1,8 @@
 import { fill, h, s, ext, api, initMode, fmtNum, fmtPct, fmtDT, fmtD, fmtDay, ago, sparkline, lineChart } from './lib.js';
 import { applyLive, livePairs } from './static-api.js';
 import { simulate, simulateReceipt, checkConfirmation, PRESETS } from './calc.js';
+import { parseInvoice } from './invoice.js';
+import { readPdf } from './pdf-text.js';
 
 const CH_LABEL = { inapp: 'No painel', email: 'E-mail', telegram: 'Telegram', ntfy: 'Celular (ntfy)' };
 
@@ -523,6 +525,12 @@ async function viewSimulador(main) {
   const moeda = h('select', null, active.map((c) => h('option', { value: c.code }, `${c.code} — ${c.name}`)));
   const fonte = h('select', null);
   const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
+  const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const dataCambio = h('input', { type: 'date', value: hojeSP });
+  const ptaxNote = h('span', { class: 'muted small' });
+  let ptaxHist = [];
+  const ptaxOn = () => { let best = null; for (const p of ptaxHist) if (p.t <= dataCambio.value) best = p; return best; };
+  const loadPtax = async () => { try { ptaxHist = (await api('/currencies/' + moeda.value + '/history?type=ptax&range=365d')).points; } catch { ptaxHist = []; } compute(); };
   const iofPct = num(3.5), irPct = num(0), gross = h('input', { type: 'checkbox', checked: true });
   const nota = h('p', { class: 'small muted' });
   const out = h('div', { class: 'card stack', 'aria-live': 'polite' });
@@ -535,7 +543,15 @@ async function viewSimulador(main) {
   const baseRate = () => {
     if (fonte.value === 'manual') return +taxa.value || 0;
     const t = typesOf().find((x) => x.type === fonte.value);
-    return t ? t.value * (1 + (+spread.value || 0) / 100) : 0;
+    if (!t) return 0;
+    let v = t.value;
+    ptaxNote.textContent = '';
+    if (t.type === 'ptax') {
+      const pp = ptaxOn();
+      if (pp) { v = pp.v; ptaxNote.textContent = 'PTAX de ' + fmtDay(pp.t); }
+      else if (dataCambio.value && dataCambio.value < hojeSP) ptaxNote.textContent = 'Sem PTAX histórica para esta data: usando a mais recente.';
+    } else if (dataCambio.value && dataCambio.value < hojeSP) ptaxNote.textContent = 'Só a PTAX tem histórico por data: usando a taxa atual.';
+    return v * (1 + (+spread.value || 0) / 100);
   };
   const decimals = () => active.find((c) => c.code === moeda.value)?.decimals ?? 4;
 
@@ -571,10 +587,49 @@ async function viewSimulador(main) {
     nota.replaceChildren(chip(p.status === 'a confirmar' ? 'A CONFIRMAR' : p.status === 'observado' ? 'Observado em operação real' : 'Confirmado no texto oficial', p.status === 'a confirmar' ? 'warn' : 'ok'), ' ', p.nota);
     compute();
   };
-  for (const el of [modo, fonte, valor, taxa, spread, tarifa, iofPct, irPct, gross]) el.addEventListener('input', compute);
-  moeda.addEventListener('input', () => { refreshFonte(); compute(); });
+  for (const el of [modo, fonte, valor, taxa, spread, tarifa, iofPct, irPct, gross, dataCambio]) el.addEventListener('input', compute);
+  moeda.addEventListener('input', () => { refreshFonte(); loadPtax(); });
   preset.addEventListener('input', applyPreset);
   refreshFonte();
+  loadPtax();
+
+  // ----- Ler invoice (PDF ou texto; nada sai do aparelho) -----
+  const invFile = h('input', { type: 'file', accept: '.pdf,.txt,application/pdf,text/plain,image/*' });
+  const invText = h('textarea', { rows: 5, placeholder: 'ou cole aqui o texto da invoice' });
+  const invOut = h('div', { class: 'stack', 'aria-live': 'polite' });
+  const NAT = { servico: 'Serviço', viagem: 'Viagem / hospedagem', mercadoria: 'Mercadoria', misto: 'Misto', outro: 'Outro' };
+  const usar = (valorUsar, nat, r) => {
+    if (active.some((c) => c.code === r.moeda)) { moeda.value = r.moeda; refreshFonte(); loadPtax(); }
+    modo.value = 'pagamento'; valor.value = valorUsar; pais.value = r.pais || ''; fin.value = NAT[nat] || '';
+    preset.value = nat === 'viagem' ? 'xp-panama' : nat === 'servico' ? 'servico-geral' : '';
+    applyPreset(); compute(); out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const showInvoice = (r) => {
+    const linhas = [['País do fornecedor', r.pais ? r.pais + ' (' + r.paisFonte + ')' : 'não identificado'], ['Valor', r.valor != null ? (r.moeda || '?') + ' ' + fmtNum(r.valor, 2) : 'não encontrado'], ['Número', r.numero || '—'], ['Data da invoice', r.data ? fmtDay(r.data) : '—'], ['Natureza', NAT[r.natureza] || '—']];
+    const grupos = Object.entries(r.valorPorNatureza);
+    invOut.replaceChildren(...[
+      h('table', { class: 't' }, h('tbody', null, linhas.map(([k, v]) => h('tr', null, h('td', null, k), h('td', null, v))))),
+      r.itens.length ? h('table', { class: 't' }, h('thead', null, h('tr', null, ['Item', 'Natureza sugerida', 'Valor'].map((x) => h('th', null, x)))), h('tbody', null, r.itens.map((i) => h('tr', null, h('td', null, i.descricao), h('td', null, NAT[i.natureza]), h('td', null, (r.moeda || '') + ' ' + fmtNum(i.valor, 2)))))) : null,
+      ...r.avisos.map((a) => banner('warn', a)),
+      banner('info', 'Leitura automática: confira os campos acima antes de decidir. A natureza do pagamento muda o IR e outros tributos.'),
+      r.data && r.data < hojeSP ? banner('info', 'A invoice é de ' + fmtDay(r.data) + '. A data do câmbio muda a taxa: ajuste "Data do câmbio" no simulador para o dia do pagamento.') : null,
+      h('div', { class: 'row' },
+        ...grupos.map(([nat, v]) => h('button', { class: 'btn', type: 'button', onclick: () => usar(v, nat, r) }, 'Simular ' + (r.moeda || '') + ' ' + fmtNum(v, 2) + ' (' + NAT[nat] + ')')),
+        r.valor != null && grupos.length !== 1 ? h('button', { class: 'btn primary', type: 'button', onclick: () => usar(r.valor, grupos.length ? 'misto' : r.natureza, r) }, 'Simular ' + (grupos.length ? 'o total ' : '') + (r.moeda || '') + ' ' + fmtNum(r.valor, 2)) : null),
+    ].filter(Boolean));
+  };
+  invFile.addEventListener('change', async () => {
+    const f = invFile.files[0];
+    if (!f) return;
+    invOut.replaceChildren(h('p', { class: 'muted' }, 'Lendo o arquivo…'));
+    try {
+      if (f.type.startsWith('image/')) { invOut.replaceChildren(banner('warn', 'Fotos e PDFs escaneados ainda não são lidos automaticamente (precisam de OCR). Cole o texto da invoice ao lado ou anexe o PDF original com texto.')); return; }
+      const text = /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? await readPdf(f) : await f.text();
+      invText.value = text;
+      if (!text.trim()) { invOut.replaceChildren(banner('warn', 'O PDF não tem texto selecionável (provavelmente é escaneado). Cole o texto manualmente.')); return; }
+      showInvoice(parseInvoice(text));
+    } catch (e) { invOut.replaceChildren(banner('bad', 'Não consegui ler o arquivo: ' + e.message)); }
+  });
 
   // ----- Conferência de confirmação de câmbio -----
   const cAmount = num(''), cRate = num(''), cReais = num(''), cIof = num(''), cIr = num('');
@@ -610,9 +665,12 @@ async function viewSimulador(main) {
   fill(main,
     h('h1', null, 'Simulador de remessa'),
     h('p', { class: 'lead' }, 'Estime rapidamente quanto custa pagar ou receber do exterior, antes de a resposta do banco chegar. As alíquotas são parâmetros que você controla: as predefinições indicam quais foram vistas em operação real, quais estão no texto oficial e quais ainda estão ', h('strong', null, 'a confirmar'), '.'),
+    h('div', { class: 'card stack' }, h('h3', null, 'Ler uma invoice'),
+      h('p', { class: 'small muted' }, 'Anexe o PDF (com texto) ou cole o texto. O app sugere valor, moeda, país e natureza, e você confere antes de simular. O arquivo é lido neste aparelho e não é enviado nem salvo.'),
+      h('div', { class: 'filters' }, field('Arquivo', invFile), field('Texto da invoice', invText), h('button', { class: 'btn primary', type: 'button', onclick: () => showInvoice(parseInvoice(invText.value)) }, 'Ler texto colado')), invOut),
     h('div', { class: 'card stack' },
       h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
-      h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa)),
+      h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
       h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,
     h('div', { class: 'card stack' }, h('h3', null, 'Guardar o que o banco cobrou'), h('p', { class: 'small muted' }, 'Registra só percentuais, país e finalidade neste aparelho (não vai para o GitHub). Serve de tabela de consulta para as próximas cotações.'),

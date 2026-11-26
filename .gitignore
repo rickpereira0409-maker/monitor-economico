@@ -6,3 +6,4 @@ site/
 *.db
 *.db-wal
 *.db-shm
+amostras/

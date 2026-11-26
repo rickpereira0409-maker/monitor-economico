@@ -1,0 +1,1 @@
+pdf.js 6.5.438 (Apache-2.0), https://github.com/mozilla/pdf.js
