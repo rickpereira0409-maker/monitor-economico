@@ -113,11 +113,11 @@ async function viewMoedas(main) {
         const r = await fetch(`https://economia.awesomeapi.com.br/json/last/${livePairs(data).join(',')}`, { cache: 'no-store' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const n = applyLive(data, await r.json());
-        liveNote.textContent = n ? `Mercado ao vivo (AwesomeAPI), consultado pelo seu celular às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })} e renovado a cada 15 s. A PTAX e os demais dados vêm da coleta automática (${ago(state.status?.generatedAt)}).` : `Sem cotação de mercado mais nova que a última coleta (${ago(state.status?.generatedAt)}).`;
+        liveNote.textContent = n ? `Mercado ao vivo (AwesomeAPI), consultado pelo seu celular às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })} e renovado a cada 30 s. A PTAX e os demais dados vêm da coleta automática (${ago(state.status?.generatedAt)}).` : `Sem cotação de mercado mais nova que a última coleta (${ago(state.status?.generatedAt)}).`;
         if (n) draw();
       } catch { liveNote.textContent = 'Não foi possível consultar as cotações ao vivo agora. Mostrando a última coleta automática.'; }
     };
-    poll(); state.live = setInterval(poll, 15000);
+    poll(); state.live = setInterval(poll, 30000);
   }
   fill(main, 
     h('h1', null, 'Moedas'),

@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '*/15 * * * *'   # o GitHub executa quando pode; atrasos de alguns minutos são normais
   workflow_dispatch:
+    inputs:
+      teste_ntfy:
+        description: 'Enviar uma notificação de teste para o celular'
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths-ignore: ['**.md', 'docs/**']
@@ -46,6 +51,8 @@ jobs:
       - name: Coletar, avaliar alertas e notificar
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          AWESOMEAPI_KEY: ${{ secrets.AWESOMEAPI_KEY }}
+          SEND_TEST: ${{ inputs.teste_ntfy }}
           PUBLIC_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
           STATE_DIR: state
           SITE_DIR: site

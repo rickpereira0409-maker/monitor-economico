@@ -11,7 +11,7 @@ import { buildSiteData } from '../src/services/site.js';
 import { collectMarket, backfillMarket, collectPtax, pruneQuotes } from '../src/collectors/fx.js';
 import { collectNews } from '../src/collectors/news.js';
 import { collectLegislation } from '../src/collectors/legislation.js';
-import { evaluateFxRules, processEvents, evaluateDeadlines, evaluateDigests } from '../src/alerts/engine.js';
+import { createAlert, evaluateFxRules, processEvents, evaluateDeadlines, evaluateDigests } from '../src/alerts/engine.js';
 import { flushOutbox } from '../src/alerts/channels.js';
 
 const stateDir = process.env.STATE_DIR || 'state';
@@ -57,6 +57,7 @@ await step('fx_ptax', () => collectPtax(db, 10, now));
 await step('news', async () => { const r = await collectNews(db, now); return { feeds: r.feeds.map((f) => `${f.id}:${f.ok ? f.nova : 'erro'}`).join(' ') }; });
 await step('legislation', () => collectLegislation(db, now));
 await step('alerts', async () => {
+  if (process.env.SEND_TEST === 'true') createAlert(db, { kind: 'resumo', dedupeKey: `teste:${now.toISOString()}`, title: 'Teste de notificação', body: 'Se você recebeu esta mensagem, o canal ntfy está funcionando.', link: '#/alertas', channels: ['inapp', 'ntfy'], now });
   const out = { eventos: processEvents(db, now), prazos: evaluateDeadlines(db, now), resumos: evaluateDigests(db, now) };
   out.envio = await flushOutbox(db, now);
   return out;
