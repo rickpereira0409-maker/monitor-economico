@@ -3,6 +3,7 @@ import { applyLive, livePairs } from './static-api.js';
 import { simulate, simulateReceipt, checkConfirmation, PRESETS } from './calc.js';
 import { parseInvoice } from './invoice.js';
 import { readPdf } from './pdf-text.js';
+import { PAISES_LISTA, NATUREZAS, STATUS, FONTES, OUTROS, EXPORTACAO, IBS_CBS, sugerirIR, calcOutros } from './tributos.js';
 
 const CH_LABEL = { inapp: 'No painel', email: 'E-mail', telegram: 'Telegram', ntfy: 'Celular (ntfy)' };
 
@@ -36,7 +37,7 @@ function favBtn(kind, ref, initial) {
 
 // =============== Estrutura ===============
 const ROUTES = [
-  ['moedas', 'Moedas'], ['noticias', 'Notícias'], ['legislacao', 'Reforma e legislação'], ['agenda', 'Agenda e prazos'], ['simulador', 'Simulador de remessa'],
+  ['moedas', 'Moedas'], ['noticias', 'Notícias'], ['legislacao', 'Reforma e legislação'], ['agenda', 'Agenda e prazos'], ['simulador', 'Simulador de remessa'], ['tributos', 'Tributos por país'],
   ['alertas', 'Alertas'], ['favoritos', 'Favoritos'], ['config', 'Configurações'],
 ];
 
@@ -523,6 +524,11 @@ async function viewSimulador(main) {
   const modo = h('select', null, [['pagamento', 'Pagamento ao exterior (envio)'], ['recebimento', 'Recebimento de exportação']].map(([v, l]) => h('option', { value: v }, l)));
   const preset = h('select', null, [['', 'Personalizado'], ...PRESETS.map((p) => [p.id, p.nome])].map(([v, l]) => h('option', { value: v }, l)));
   const moeda = h('select', null, active.map((c) => h('option', { value: c.code }, `${c.code} — ${c.name}`)));
+  const paisSel = h('select', null, [['', 'Selecione o país'], ...PAISES_LISTA.map((p) => [p, p])].map(([v, l]) => h('option', { value: v }, l)));
+  const natSel = h('select', null, [['', 'Selecione a natureza'], ...Object.entries(NATUREZAS).map(([k, n]) => [k, n.label])].map(([v, l]) => h('option', { value: v }, l)));
+  const sugestao = h('div', { class: 'small stack' });
+  const incluirOutros = h('input', { type: 'checkbox', checked: true });
+  const cideIn = num(OUTROS.cide.pct), pisIn = num(OUTROS.pis.pct), cofinsIn = num(OUTROS.cofins.pct), issIn = num(0);
   const fonte = h('select', null);
   const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
   const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -577,8 +583,39 @@ async function viewSimulador(main) {
         row('VET sem IR (como o banco costuma imprimir)', `R$ ${fmtNum(r.vetSemIr, 5)}`), row('VET com IR (custo real por unidade)', `R$ ${fmtNum(r.vetComIr, 4)}`),
         row('Quanto acima da taxa de câmbio', `${fmtNum(r.acimaDaTaxaPct, 2)}%`))),
       h('p', { class: 'muted small' }, 'Estimativa. IOF e IR dependem da finalidade, do país e do tratado: confirme com o contador e o banco.'));
+      out.append(outrosNode(r));
     }
     return { res, amount, rate };
+  };
+
+  /** Tributos que a empresa apura fora da cotação do banco (CIDE, PIS/Cofins-importação, ISS). */
+  const outrosNode = (r) => {
+    if (!incluirOutros.checked) return h('span');
+    if (!natSel.value) return h('p', { class: 'muted small' }, 'Escolha a natureza do pagamento para estimar CIDE, PIS/Cofins-importação e ISS: tributos que a sua empresa recolhe, fora da cotação do banco.');
+    const o = calcOutros({ reais: r.reais, natureza: natSel.value, cide: +cideIn.value || 0, pis: +pisIn.value || 0, cofins: +cofinsIn.value || 0, iss: +issIn.value || 0 });
+    if (!o.itens.length) return h('p', { class: 'muted small' }, 'Para esta natureza não estimo CIDE, PIS/Cofins-importação nem ISS.');
+    const totalGeral = Math.round((r.total + o.total) * 100) / 100;
+    return h('div', { class: 'stack' },
+      h('h3', null, 'Tributos que a empresa recolhe, fora da cotação do banco (estimativa)'),
+      h('table', { class: 't' }, h('tbody', null,
+        ...o.itens.map((i) => h('tr', null, h('td', null, `${i.label} (${fmtNum(i.pct, 2)}%) `, chip(STATUS[i.status].label, STATUS[i.status].cls)), h('td', null, brl(i.valor)))),
+        row('Total desses tributos', brl(o.total)),
+        row('Custo total com tudo (banco + empresa)', brl(totalGeral), true),
+        row('Custo por unidade de moeda estrangeira', `R$ ${fmtNum(totalGeral / (+valor.value || 1), 4)}`),
+        o.creditavel > 0 ? row('Se PIS/Cofins virarem crédito (Lucro Real)', brl(totalGeral - o.creditavel)) : null)),
+      h('p', { class: 'muted small' }, 'Cálculo simplificado sobre o valor em reais: na importação de serviço a base de PIS/Cofins inclui o ISS e as próprias contribuições, e há discussão judicial sobre isso. A alíquota do ISS é do seu município (2% a 5%). Confirme tudo com o contador.'));
+  };
+  const applySugestao = () => {
+    const s = sugerirIR(paisSel.value, natSel.value);
+    if (!s) { sugestao.replaceChildren(h('span', { class: 'muted' }, 'Escolha o país e a natureza do pagamento para sugerir o IR.')); compute(); return; }
+    irPct.value = s.ir; gross.checked = s.ir > 0;
+    preset.value = '';
+    fill(sugestao,
+      h('div', null, chip(STATUS[s.status].label, STATUS[s.status].cls), ` IR sugerido: ${fmtNum(s.ir, 2)}%`, s.irMin != null && s.irMin !== s.ir ? ` (pode cair para ${fmtNum(s.irMin, 2)}% se o tratado ou a condição se aplicar; para orçar, use o maior)` : ''),
+      h('div', { class: 'muted' }, s.nota),
+      h('div', { class: 'muted' }, 'Tratado: ', s.tratado),
+      s.fontes.length ? h('div', null, 'Fontes: ', ...s.fontes.flatMap((id, i) => [i ? ' · ' : '', ext(FONTES[id][1], FONTES[id][0])])) : null);
+    compute();
   };
   const applyPreset = () => {
     const p = PRESETS.find((x) => x.id === preset.value);
@@ -589,7 +626,9 @@ async function viewSimulador(main) {
   };
   for (const el of [modo, fonte, valor, taxa, spread, tarifa, iofPct, irPct, gross, dataCambio]) el.addEventListener('input', compute);
   moeda.addEventListener('input', () => { refreshFonte(); loadPtax(); });
-  preset.addEventListener('input', applyPreset);
+  preset.addEventListener('input', () => { paisSel.value = ''; natSel.value = ''; sugestao.replaceChildren(); applyPreset(); });
+  for (const el of [paisSel, natSel]) el.addEventListener('input', applySugestao);
+  for (const el of [incluirOutros, cideIn, pisIn, cofinsIn, issIn]) el.addEventListener('input', compute);
   refreshFonte();
   loadPtax();
 
@@ -601,8 +640,9 @@ async function viewSimulador(main) {
   const usar = (valorUsar, nat, r) => {
     if (active.some((c) => c.code === r.moeda)) { moeda.value = r.moeda; refreshFonte(); loadPtax(); }
     modo.value = 'pagamento'; valor.value = valorUsar; pais.value = r.pais || ''; fin.value = NAT[nat] || '';
-    preset.value = nat === 'viagem' ? 'xp-panama' : nat === 'servico' ? 'servico-geral' : '';
-    applyPreset(); compute(); out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    paisSel.value = PAISES_LISTA.includes(r.pais) ? r.pais : (r.pais ? 'Outro país' : '');
+    natSel.value = { servico: 'tecnico', viagem: 'viagem', mercadoria: 'mercadoria' }[nat] || '';
+    applySugestao(); out.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   const showInvoice = (r) => {
     const linhas = [['País do fornecedor', r.pais ? r.pais + ' (' + r.paisFonte + ')' : 'não identificado'], ['Valor', r.valor != null ? (r.moeda || '?') + ' ' + fmtNum(r.valor, 2) : 'não encontrado'], ['Número', r.numero || '—'], ['Data da invoice', r.data ? fmtDay(r.data) : '—'], ['Natureza', NAT[r.natureza] || '—']];
@@ -670,6 +710,8 @@ async function viewSimulador(main) {
       h('div', { class: 'filters' }, field('Arquivo', invFile), field('Texto da invoice', invText), h('button', { class: 'btn primary', type: 'button', onclick: () => showInvoice(parseInvoice(invText.value)) }, 'Ler texto colado')), invOut),
     h('div', { class: 'card stack' },
       h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
+      h('div', { class: 'filters' }, field('País do fornecedor', paisSel), field('Natureza do pagamento', natSel)), sugestao,
+      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn), field('PIS-imp. (%)', pisIn), field('Cofins-imp. (%)', cofinsIn), field('ISS do município (%)', issIn, 'Entre 2% e 5%')),
       h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
       h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,
@@ -683,8 +725,49 @@ async function viewSimulador(main) {
   compute();
 }
 
+// =============== Tributos por país (referência) ===============
+function viewTributos(main) {
+  const chipS = (st) => chip(STATUS[st].label, STATUS[st].cls);
+  const fontesNodes = (ids) => (ids || []).flatMap((id, i) => (FONTES[id] ? [i ? ' · ' : '', ext(FONTES[id][1], FONTES[id][0])] : []));
+  const nats = Object.entries(NATUREZAS);
+  const tabela = h('div', { class: 'card' }, h('table', { class: 't' },
+    h('thead', null, h('tr', null, h('th', null, 'IRRF na remessa'), ...nats.map(([, n]) => h('th', null, n.label)))),
+    h('tbody', null, PAISES_LISTA.map((p) => h('tr', null, h('td', null, h('strong', null, p)), ...nats.map(([k]) => {
+      const s = sugerirIR(p, k);
+      return h('td', null, h('div', null, h('strong', null, `${fmtNum(s.ir, 0)}%`), s.irMin != null && s.irMin !== s.ir ? h('span', { class: 'muted small' }, ` (até ${fmtNum(s.irMin, 0)}%)`) : null), chipS(s.status));
+    }))))));
+  const porPais = PAISES_LISTA.map((p) => {
+    const detalhes = nats.map(([k, n]) => sugerirIR(p, k));
+    return h('details', { class: 'explain' }, h('summary', null, p),
+      h('div', { class: 'stack small' },
+        h('p', null, h('strong', null, 'Tratado / lista: '), detalhes[0].tratado),
+        ...detalhes.map((s) => h('p', null, h('strong', null, `${NATUREZAS[s.natureza].label}: ${fmtNum(s.ir, 0)}%`), ' ', chipS(s.status), ' ', s.nota, s.fontes.length ? h('span', null, ' Fontes: ', ...fontesNodes(s.fontes)) : null))));
+  });
+  const outros = Object.values(OUTROS).map((o) => h('div', { class: 'small' }, h('strong', null, `${o.label}${o.pct ? `: ${fmtNum(o.pct, 2)}%` : ''}`), ' ', chipS(o.status), ' ', o.nota, o.fontes.length ? h('span', null, ' Fontes: ', ...fontesNodes(o.fontes)) : null));
+  fill(main,
+    h('h1', null, 'Tributos por país'),
+    h('p', { class: 'lead' }, 'Referência rápida do imposto de renda retido (IRRF) ao pagar serviços ao exterior e dos demais tributos da operação. Cada linha mostra o grau de confiança e a fonte. Nada aqui foi validado por contador.'),
+    banner('warn', h('strong', null, 'Use para orçar, não para decidir sozinho. '), 'Onde há faixa (por exemplo 15% e "até 10%"), orce com o maior valor. As regras e as páginas de origem mudam: a lista de tributação favorecida que li só mostra alterações até 2017, e a Colômbia não teve os artigos do tratado lidos.'),
+    tabela,
+    h('h2', null, 'Detalhe por país'), h('div', { class: 'stack' }, ...porPais),
+    h('h2', null, 'Outros tributos do serviço importado (a empresa recolhe)'),
+    h('div', { class: 'card stack' }, ...outros, h('p', { class: 'small' }, h('strong', null, 'IBS e CBS: '), IBS_CBS, ' ', h('span', null, 'Fonte: '), ...fontesNodes(['lc214']))),
+    h('h2', null, 'IOF'),
+    h('div', { class: 'card stack small' }, h('p', null, h('strong', null, 'Pagamento ao exterior: 3,5% '), chipS('observado'), ' Cobrado pela XP e pelo Rendimento em 2026. O texto do Decreto 6.306 tem notas conflitantes (Decreto Legislativo 176/2025), mas os bancos aplicaram 3,5%.'),
+      h('p', null, h('strong', null, 'Recebimento de exportação: 0% '), chipS('texto'), ' ', ...fontesNodes(['iof']))),
+    h('h2', null, 'Exportação do Rompex'),
+    h('div', { class: 'card stack small' }, ...EXPORTACAO.map((e) => h('p', null, h('strong', null, e.titulo + ': '), chipS(e.status), ' ', e.texto, e.fontes ? h('span', null, ' Fontes: ', ...fontesNodes(e.fontes)) : null))),
+    h('h2', null, 'Pendente de confirmação'),
+    h('div', { class: 'card stack small' }, h('ul', null,
+      h('li', null, 'Alíquotas de IRRF por país conferidas por contador, especialmente serviço técnico e não técnico.'),
+      h('li', null, 'Texto e vigência do tratado com a Colômbia, e a equiparação de serviço técnico a royalties no tratado com o Chile.'),
+      h('li', null, 'Se a CIDE de 10% se aplica ao seu caso concreto (a cotação do banco não a inclui).'),
+      h('li', null, 'Alíquota de ISS do seu município e tratamento de PIS/Cofins-importação (base e crédito).'),
+      h('li', null, 'Tratamento tributário de uma NF-e de exportação do Rompex e a tarifa de importação em cada país de destino.'))));
+}
+
 // =============== Roteamento ===============
-const VIEWS = { moedas: viewMoedas, noticias: viewNoticias, legislacao: viewLegislacao, agenda: viewAgenda, simulador: viewSimulador, alertas: viewAlertas, favoritos: viewFavoritos, config: viewConfig };
+const VIEWS = { moedas: viewMoedas, noticias: viewNoticias, legislacao: viewLegislacao, agenda: viewAgenda, simulador: viewSimulador, tributos: viewTributos, alertas: viewAlertas, favoritos: viewFavoritos, config: viewConfig };
 
 async function route() {
   const id = (location.hash.replace(/^#\//, '') || 'moedas').split('?')[0];

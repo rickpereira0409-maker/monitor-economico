@@ -70,5 +70,6 @@ test('simulate reproduz a cotação do Banco Rendimento (serviço ao Paraguai, t
   assert.equal(r.ir, 3055.42, 'DARF 0422: 15% com gross-up = 17,647% sobre o líquido');
   assert.equal(r.total, 21126.36, 'VALOR FINAL da cotação');
   assert.equal(((r.reais + r.iof + 150.9) / 3415).toFixed(4), '5.2916', 'VET impresso (sem IR)');
+  assert.equal(r.vetSemIr.toFixed(4), '5.2916', 'o simulador mostra o mesmo VET do banco, com a tarifa');
   assert.equal((15 / 85 * 100).toFixed(7), '17.6470588');
 });

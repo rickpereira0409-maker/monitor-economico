@@ -14,7 +14,7 @@ export function simulate({ amount, rate, iofPct = 0, irPct = 0, grossUp = true, 
   const total = r2(reais + iof + ir + fee);
   return {
     reais, iof, irBase, ir, fee, total,
-    vetSemIr: (reais + iof) / amount, // é o "VET" que o banco costuma imprimir: não inclui o IR
+    vetSemIr: (reais + iof + fee) / amount, // o "VET" que o banco imprime: câmbio + IOF + tarifa em reais; NÃO inclui o IR
     vetComIr: total / amount,         // custo real por unidade de moeda estrangeira
     acimaDaTaxaPct: (total / reais - 1) * 100,
   };
