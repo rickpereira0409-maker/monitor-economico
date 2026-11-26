@@ -1,5 +1,6 @@
 import { fill, h, s, ext, api, initMode, fmtNum, fmtPct, fmtDT, fmtD, fmtDay, ago, sparkline, lineChart } from './lib.js';
 import { applyLive, livePairs } from './static-api.js';
+import { simulate, simulateReceipt, checkConfirmation, PRESETS } from './calc.js';
 
 const CH_LABEL = { inapp: 'No painel', email: 'E-mail', telegram: 'Telegram', ntfy: 'Celular (ntfy)' };
 
@@ -33,7 +34,7 @@ function favBtn(kind, ref, initial) {
 
 // =============== Estrutura ===============
 const ROUTES = [
-  ['moedas', 'Moedas'], ['noticias', 'Notícias'], ['legislacao', 'Reforma e legislação'], ['agenda', 'Agenda e prazos'],
+  ['moedas', 'Moedas'], ['noticias', 'Notícias'], ['legislacao', 'Reforma e legislação'], ['agenda', 'Agenda e prazos'], ['simulador', 'Simulador de remessa'],
   ['alertas', 'Alertas'], ['favoritos', 'Favoritos'], ['config', 'Configurações'],
 ];
 
@@ -505,8 +506,127 @@ async function viewConfig(main) {
   fill(main, h('h1', null, 'Configurações'), curBox, h('h2', null, 'Regras de alerta'), rulesList, ruleForm, h('h2', null, 'Entrega'), delivery, h('h2', null, 'Fontes'), src, h('h2', null, 'Ajuda'), gloss);
 }
 
+// =============== Simulador de remessa ===============
+const OPS_KEY = 'monitor.ops';
+const loadOps = () => { try { return JSON.parse(localStorage.getItem(OPS_KEY)) || []; } catch { return []; } };
+const saveOps = (ops) => { try { localStorage.setItem(OPS_KEY, JSON.stringify(ops)); } catch { /* sem armazenamento: não persiste */ } };
+const brl = (v) => `R$ ${fmtNum(v, 2)}`;
+
+async function viewSimulador(main) {
+  const cur = await api('/currencies');
+  const active = cur.currencies.filter((c) => c.active);
+  const num = (v, extra) => h('input', { type: 'number', step: 'any', min: 0, value: v, ...extra });
+  const field = (label, el, help) => h('label', { class: 'field' }, label, el, help ? h('span', { class: 'muted small' }, help) : null);
+
+  const modo = h('select', null, [['pagamento', 'Pagamento ao exterior (envio)'], ['recebimento', 'Recebimento de exportação']].map(([v, l]) => h('option', { value: v }, l)));
+  const preset = h('select', null, [['', 'Personalizado'], ...PRESETS.map((p) => [p.id, p.nome])].map(([v, l]) => h('option', { value: v }, l)));
+  const moeda = h('select', null, active.map((c) => h('option', { value: c.code }, `${c.code} — ${c.name}`)));
+  const fonte = h('select', null);
+  const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
+  const iofPct = num(3.5), irPct = num(0), gross = h('input', { type: 'checkbox', checked: true });
+  const nota = h('p', { class: 'small muted' });
+  const out = h('div', { class: 'card stack', 'aria-live': 'polite' });
+
+  const typesOf = () => (active.find((c) => c.code === moeda.value)?.types || []).filter((t) => t.available);
+  const refreshFonte = () => {
+    const opts = [...typesOf().map((t) => [t.type, `${t.short}: R$ ${fmtNum(t.value, 4)}`]), ['manual', 'Informar a taxa do banco']];
+    fonte.replaceChildren(...opts.map(([v, l]) => h('option', { value: v, selected: v === (typesOf().some((t) => t.type === 'ptax') ? 'ptax' : 'manual') }, l)));
+  };
+  const baseRate = () => {
+    if (fonte.value === 'manual') return +taxa.value || 0;
+    const t = typesOf().find((x) => x.type === fonte.value);
+    return t ? t.value * (1 + (+spread.value || 0) / 100) : 0;
+  };
+  const decimals = () => active.find((c) => c.code === moeda.value)?.decimals ?? 4;
+
+  const row = (k, v, strong) => h('tr', null, h('td', null, k), h('td', { class: strong ? 'delta' : '' }, v));
+  const compute = () => {
+    const amount = +valor.value, rate = baseRate();
+    if (!(amount > 0) || !(rate > 0)) { out.replaceChildren(h('p', { class: 'muted' }, 'Informe o valor e a taxa para ver o custo.')); return null; }
+    let res;
+    if (modo.value === 'recebimento') {
+      const r = simulateReceipt({ amount, rate, fee: +tarifa.value || 0, iofPct: +iofPct.value || 0 });
+      res = r;
+      out.replaceChildren(h('h3', null, 'Quanto você recebe'), h('table', { class: 't' }, h('tbody', null,
+        row('Taxa aplicada', `R$ ${fmtNum(rate, decimals())}`), row('Valor bruto em reais', brl(r.reais)), row('IOF', brl(r.iof)), row('Tarifa', brl(r.fee)),
+        row('Você recebe (líquido)', brl(r.liquido), true), row('Taxa efetiva por unidade', `R$ ${fmtNum(r.taxaEfetiva, 4)}`))),
+      h('p', { class: 'muted small' }, 'Exportação: IOF zero para receitas de exportação (Decreto 6.306, art. 15-B, I). Spread do banco entra na taxa informada.'));
+    } else {
+      const r = simulate({ amount, rate, iofPct: +iofPct.value || 0, irPct: +irPct.value || 0, grossUp: gross.checked, fee: +tarifa.value || 0 });
+      res = r;
+      out.replaceChildren(h('h3', null, 'Quanto custa'), h('table', { class: 't' }, h('tbody', null,
+        row('Taxa aplicada', `R$ ${fmtNum(rate, decimals())}`), row('Valor em reais (valor × taxa)', brl(r.reais)), row(`IOF (${fmtNum(+iofPct.value || 0, 2)}%)`, brl(r.iof)),
+        row(`IR (${fmtNum(+irPct.value || 0, 2)}%${gross.checked && +irPct.value > 0 ? ', gross-up' : ''})${gross.checked && +irPct.value > 0 ? ` sobre base ${brl(r.irBase)}` : ''}`, brl(r.ir)),
+        row('Tarifa', brl(r.fee)), row('Custo total em reais', brl(r.total), true),
+        row('VET sem IR (como o banco costuma imprimir)', `R$ ${fmtNum(r.vetSemIr, 5)}`), row('VET com IR (custo real por unidade)', `R$ ${fmtNum(r.vetComIr, 4)}`),
+        row('Quanto acima da taxa de câmbio', `${fmtNum(r.acimaDaTaxaPct, 2)}%`))),
+      h('p', { class: 'muted small' }, 'Estimativa. IOF e IR dependem da finalidade, do país e do tratado: confirme com o contador e o banco.'));
+    }
+    return { res, amount, rate };
+  };
+  const applyPreset = () => {
+    const p = PRESETS.find((x) => x.id === preset.value);
+    if (!p) { nota.textContent = ''; return; }
+    modo.value = p.modo; iofPct.value = p.iofPct; irPct.value = p.irPct; gross.checked = p.grossUp;
+    nota.replaceChildren(chip(p.status === 'a confirmar' ? 'A CONFIRMAR' : p.status === 'observado' ? 'Observado em operação real' : 'Confirmado no texto oficial', p.status === 'a confirmar' ? 'warn' : 'ok'), ' ', p.nota);
+    compute();
+  };
+  for (const el of [modo, fonte, valor, taxa, spread, tarifa, iofPct, irPct, gross]) el.addEventListener('input', compute);
+  moeda.addEventListener('input', () => { refreshFonte(); compute(); });
+  preset.addEventListener('input', applyPreset);
+  refreshFonte();
+
+  // ----- Conferência de confirmação de câmbio -----
+  const cAmount = num(''), cRate = num(''), cReais = num(''), cIof = num(''), cIr = num('');
+  const cIofPct = num(3.5), cIrPct = num(8), cGross = h('input', { type: 'checkbox', checked: true });
+  const cOut = h('div', { class: 'stack', 'aria-live': 'polite' });
+  const check = () => {
+    const amount = +cAmount.value, rate = +cRate.value;
+    if (!(amount > 0) || !(rate > 0)) { cOut.replaceChildren(h('p', { class: 'muted' }, 'Informe o valor em moeda estrangeira e a taxa da confirmação.')); return; }
+    const c = checkConfirmation({ amount, rate, reais: cReais.value === '' ? NaN : +cReais.value, iof: +cIof.value || 0, ir: +cIr.value || 0, iofPct: +cIofPct.value || 0, irPct: +cIrPct.value || 0, grossUp: cGross.checked });
+    cOut.replaceChildren(...c.achados.map((a) => banner(a.nivel === 'erro' ? 'bad' : a.nivel === 'aviso' ? 'warn' : 'info', a.texto)),
+      h('p', { class: 'small muted' }, `Esperado: valor em reais ${brl(c.esperado.reais)} · IOF ${brl(c.esperado.iof)} · IR ${brl(c.esperado.ir)} · total ${brl(c.esperado.total)}.`));
+  };
+  for (const el of [cAmount, cRate, cReais, cIof, cIr, cIofPct, cIrPct, cGross]) el.addEventListener('input', check);
+  check();
+
+  // ----- Minhas operações (ficam só neste aparelho) -----
+  const opsBox = h('div', { class: 'stack' });
+  const paintOps = () => {
+    const ops = loadOps();
+    opsBox.replaceChildren(ops.length ? h('table', { class: 't' }, h('thead', null, h('tr', null, ['Data', 'País / finalidade', 'IOF', 'IR', 'Taxa vs PTAX', ''].map((x) => h('th', null, x)))),
+      h('tbody', null, ops.map((o, i) => h('tr', null, h('td', null, o.data), h('td', null, `${o.pais || '—'} · ${o.finalidade || '—'}`), h('td', null, `${fmtNum(o.iofPct, 2)}%`), h('td', null, `${fmtNum(o.irPct, 2)}%${o.grossUp && o.irPct ? ' (gross-up)' : ''}`),
+        h('td', null, o.spreadVsPtax == null ? '—' : `${fmtPct(o.spreadVsPtax)}`), h('td', null, h('button', { class: 'btn small danger', type: 'button', onclick: () => { saveOps(loadOps().filter((_, j) => j !== i)); paintOps(); } }, 'Remover')))))) : h('p', { class: 'muted' }, 'Nenhuma operação registrada ainda.'));
+  };
+  const pais = h('input', { type: 'text', maxlength: 40, placeholder: 'ex.: Panamá' }), fin = h('input', { type: 'text', maxlength: 80, placeholder: 'ex.: serviço de software' });
+  const salvar = h('button', { class: 'btn', type: 'button', onclick: () => {
+    const ptax = typesOf().find((t) => t.type === 'ptax');
+    const r = baseRate();
+    saveOps([{ data: new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }), pais: pais.value.trim(), finalidade: fin.value.trim(), iofPct: +iofPct.value || 0, irPct: +irPct.value || 0, grossUp: gross.checked, spreadVsPtax: ptax && r ? ((r / ptax.value - 1) * 100) : null }, ...loadOps()].slice(0, 200));
+    paintOps();
+  } }, 'Salvar estas alíquotas em "Minhas operações"');
+  paintOps();
+
+  fill(main,
+    h('h1', null, 'Simulador de remessa'),
+    h('p', { class: 'lead' }, 'Estime rapidamente quanto custa pagar ou receber do exterior, antes de a resposta do banco chegar. As alíquotas são parâmetros que você controla: as predefinições indicam quais foram vistas em operação real, quais estão no texto oficial e quais ainda estão ', h('strong', null, 'a confirmar'), '.'),
+    h('div', { class: 'card stack' },
+      h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
+      h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa)),
+      h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
+    out,
+    h('div', { class: 'card stack' }, h('h3', null, 'Guardar o que o banco cobrou'), h('p', { class: 'small muted' }, 'Registra só percentuais, país e finalidade neste aparelho (não vai para o GitHub). Serve de tabela de consulta para as próximas cotações.'),
+      h('div', { class: 'filters' }, field('País', pais), field('Finalidade / natureza', fin), salvar)),
+    h('h2', null, 'Conferir uma confirmação de câmbio'),
+    h('div', { class: 'card stack' }, h('p', { class: 'small muted' }, 'Digite os valores impressos pelo banco. O app confere IOF e IR e avisa se faltar imposto, como no caso do IR que não foi retido.'),
+      h('div', { class: 'filters' }, field('Valor em moeda estrangeira', cAmount), field('Taxa de câmbio', cRate), field('Valor em reais', cReais), field('IOF cobrado (R$)', cIof), field('IR cobrado (R$)', cIr)),
+      h('div', { class: 'filters' }, field('IOF esperado (%)', cIofPct), field('IR esperado (%)', cIrPct), h('label', { class: 'check' }, cGross, 'IR com gross-up')), cOut),
+    h('h2', null, 'Minhas operações'), h('div', { class: 'card' }, opsBox));
+  compute();
+}
+
 // =============== Roteamento ===============
-const VIEWS = { moedas: viewMoedas, noticias: viewNoticias, legislacao: viewLegislacao, agenda: viewAgenda, alertas: viewAlertas, favoritos: viewFavoritos, config: viewConfig };
+const VIEWS = { moedas: viewMoedas, noticias: viewNoticias, legislacao: viewLegislacao, agenda: viewAgenda, simulador: viewSimulador, alertas: viewAlertas, favoritos: viewFavoritos, config: viewConfig };
 
 async function route() {
   const id = (location.hash.replace(/^#\//, '') || 'moedas').split('?')[0];

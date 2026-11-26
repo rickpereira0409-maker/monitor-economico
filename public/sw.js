@@ -1,7 +1,7 @@
 // Service worker: permite instalar o app e abri-lo mesmo sem rede (com os últimos dados em cache).
 // Estratégia: rede primeiro (dados sempre frescos); se a rede falhar, usa o cache.
-const CACHE = 'monitor-v1';
-const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'static-api.js', 'styles.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'monitor-v2';
+const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'static-api.js', 'calc.js', 'styles.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {
