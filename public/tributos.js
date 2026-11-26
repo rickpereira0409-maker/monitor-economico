@@ -15,6 +15,7 @@ export const FONTES = {
   lei14537: ['Lei 14.537/2023 – IRRF reduzido em remessas de viagem', 'https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/lei/L14537.htm'],
   argentina: ['Decreto 9.482/2018 – protocolo Brasil-Argentina', 'https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/decreto/D9482.htm'],
   chile: ['Decreto 12.863/2026 – protocolo Brasil-Chile', 'https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/d12863.htm'],
+  peru: ['Decreto 7.020/2009 – convenção Brasil-Peru (com protocolo)', 'https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2009/decreto/d7020.htm'],
   chile2003: ['Decreto 4.852/2003 – convenção Brasil-Chile', 'https://planalto.gov.br/ccivil_03/decreto/2003/D4852.htm'],
   colombia: ['Decreto Legislativo 193/2025 – convenção Brasil-Colômbia (só aprovação; texto e vigência não lidos)', 'https://www2.camara.leg.br/legin/fed/decleg/2025/decretolegislativo-193-2-setembro-2025-797919-convencao-176284-pl.html'],
   adi5: ['ADI RFB 5/2014 – serviços técnicos e tratados', 'https://www.legisweb.com.br/legislacao/?id=271673'],
@@ -34,12 +35,12 @@ export const NATUREZAS = {
   mercadoria: { label: 'Importação de mercadoria', cide: false, piscofins: false, iss: false },
 };
 
-export const PAISES_LISTA = ['Paraguai', 'Panamá', 'Bolívia', 'Argentina', 'Chile', 'Colômbia', 'Outro país'];
+export const PAISES_LISTA = ['Paraguai', 'Panamá', 'Bolívia', 'Argentina', 'Chile', 'Colômbia', 'Peru', 'Outro país'];
 
 const PAISES = {
   Paraguai: { favorecida: false, tratado: 'Não encontrei convenção de imposto de renda com o Paraguai.',
     over: { tecnico: { status: 'observado', nota: 'Cobrado pelo Banco Rendimento em maio/2026 para serviço ao Paraguai (DARF 0422, 15% com gross-up).' } } },
-  Panamá: { favorecida: true, tratado: 'Não encontrei convenção de imposto de renda com o Panamá. O Panamá consta na lista de tributação favorecida (IN RFB 1.037/2010, item XLII; páginas só até 2017).',
+  Panamá: { favorecida: true, tratado: 'Não encontrei convenção de imposto de renda com o Panamá (uma fonte secundária citava o Decreto 10.705/2021, mas ele é com os Emirados Árabes Unidos). O Panamá consta na lista de tributação favorecida (IN RFB 1.037/2010, item XLII; páginas só até 2017).',
     over: { viagem: { status: 'observado', nota: 'A XP cobrou 8% sobre o hotel (19/11/2026). Vale até R$ 20 mil por mês; 9% em 2027. A taxa do evento pode não se enquadrar como gasto de viagem: confirme com o contador.' } } },
   Bolívia: { favorecida: false, tratado: 'Não encontrei convenção de imposto de renda com a Bolívia.', over: {} },
   Argentina: { favorecida: false, tratado: 'Convenção de 1980 (Dec. 87.976/1982) e protocolo de 2017 (Dec. 9.482/2018; retenção na fonte desde 1/1/2019).',
@@ -50,15 +51,21 @@ const PAISES = {
     } },
   Chile: { favorecida: false, tratado: 'Convenção (Dec. 4.852/2003) e protocolo de 2022 (Dec. 12.863/2026; em vigor para o Brasil em 30/10/2025, retenção na fonte desde 1/1/2026).',
     over: {
-      tecnico: { ir: 15, irMin: 10, status: 'confirmar', fontes: ['chile', 'chile2003', 'adi5'], nota: 'A equiparação de serviço técnico a royalties vem do protocolo de 2001, que li só em resumo. Royalties: 15% (marcas) e 10% (demais) após o protocolo de 2022. Orce com 15% e confirme.' },
+      tecnico: { ir: 15, irMin: 10, status: 'texto', fontes: ['chile2003', 'chile', 'adi5'], nota: 'Protocolo de 2001, item 5 (lido): o §3 do art. 12 (royalties) se aplica a serviços técnicos e assistência técnica. O teto do art. 12 §2 era 15% e, pelo protocolo de 2022, é 10% para royalties em geral (15% para marcas), com efeitos desde 1/1/2026. Aplicar o §2 aos serviços é a leitura da Receita (ADI 5/2014); orce com 15% e confirme se cabe 10%.' },
       royalties: { ir: 15, irMin: 10, status: 'texto', fontes: ['chile'], nota: 'Protocolo de 2022, art. 6: 15% (marcas) e 10% (demais royalties), com efeitos para pagamentos a partir de 1/1/2026.' },
-      servico: { ir: 25, irMin: 0, status: 'confirmar', fontes: ['chile2003', 'adi5'], nota: 'Arts. 7 e 14 da convenção: sem estabelecimento permanente, lucros e serviços profissionais independentes são tributados no residente. Orce com 25% e confirme o enquadramento.' },
+      servico: { ir: 25, irMin: 0, status: 'confirmar', fontes: ['chile2003', 'adi5'], nota: 'Art. 7: lucros só são tributados no residente sem estabelecimento permanente. Art. 14 (serviços profissionais independentes) permite tributar na fonte se a remuneração for paga por residente do outro país, e a convenção não fixa alíquota. Orce com 25% e confirme o enquadramento.' },
     } },
-  Colômbia: { favorecida: false, tratado: 'Convenção assinada em 2022 e aprovada pelo Congresso (DL 193/2025). Não consegui ler os artigos nem confirmar promulgação e datas de efeito.',
+  Colômbia: { favorecida: false, tratado: 'Convenção assinada em 2022 e aprovada pelo Congresso (PDL 311/2024, que virou o Decreto Legislativo 193/2025, de 2/9/2025). Li só o registro legislativo: o texto dos artigos, o decreto de promulgação e as datas de efeito não estavam acessíveis.',
     over: {
       tecnico: { status: 'confirmar', fontes: ['colombia', 'adi5'], nota: 'Se a convenção já valer, pode haver teto de retenção menor. Sem alíquota confirmada: usando a regra interna.' },
       servico: { status: 'confirmar', fontes: ['colombia', 'adi5'], nota: 'Sem alíquota confirmada para a convenção: usando a regra interna.' },
       royalties: { status: 'confirmar', fontes: ['colombia'], nota: 'Sem alíquota confirmada para a convenção: usando a regra interna.' },
+    } },
+  Peru: { favorecida: false, tratado: 'Convenção de 2006 (Dec. 7.020/2009), em vigor internacionalmente desde 14/08/2009; retenção na fonte a partir de 1/1/2010 (leitura do art. 28). Sem protocolo ou emenda posterior nos textos lidos.',
+    over: {
+      tecnico: { ir: 15, irMin: null, status: 'texto', fontes: ['peru', 'adi5'], nota: 'Protocolo, item 4 (lido): serviços técnicos e assistência técnica, inclusive serviços digitais e empresariais e consultorias, recebem o tratamento de royalties (art. 12): teto de 15%.' },
+      royalties: { ir: 15, irMin: null, status: 'texto', fontes: ['peru'], nota: 'Art. 12 §2 (lido): teto de 15% do valor bruto.' },
+      servico: { ir: 15, irMin: 0, status: 'confirmar', fontes: ['peru', 'adi5'], nota: 'O protocolo cobre serviços empresariais e consultorias com teto de 15%. Serviço fora desse conceito iria para o art. 7 (sem retenção) ou para a regra interna (25%): confirme o enquadramento.' },
     } },
   'Outro país': { favorecida: null, tratado: 'Verifique se há convenção com o país e se ele consta na lista de tributação favorecida.', over: {}, genericoConfirmar: true },
 };
@@ -87,7 +94,7 @@ export const OUTROS = {
   cide: { label: 'CIDE-Remessas', pct: 10, status: 'texto', fontes: ['cide', 'cideStf'], nota: '10% sobre remessas de royalties, serviços técnicos e assistência técnica/administrativa. O STF validou a cobrança em 2025 (Tema 914) e o CARF entende que incide mesmo sem transferência de tecnologia. Não costuma entrar na cotação do banco.' },
   pis: { label: 'PIS-Importação', pct: 1.65, status: 'texto', fontes: ['pisCofins'], nota: 'Na importação de serviço, a base inclui o ISS e as próprias contribuições; há decisão do TRF3 (2025) excluindo o ISS da base. Estimativa simplificada sobre o valor em reais.' },
   cofins: { label: 'Cofins-Importação', pct: 7.6, status: 'texto', fontes: ['pisCofins'], nota: 'Alguns casos têm 1 ponto adicional, sem crédito. No Lucro Real, PIS e Cofins-importação costumam gerar crédito (confirme).' },
-  iss: { label: 'ISS na importação de serviço', pct: 3, status: 'confirmar', fontes: [], nota: 'Devido ao município do tomador. Alíquota de 3% informada por você para o seu município; o limite legal geral é de 2% a 5%. Confirme com a prefeitura ou o contador.' },
+  iss: { label: 'ISS na importação de serviço', pct: 0, status: 'confirmar', fontes: [], nota: 'Não se aplica ao seu caso, segundo você: o padrão é zero e ele não entra no total. Se o contador disser o contrário, informe a alíquota do município (a sua foi citada como 3%; o limite legal geral é de 2% a 5%).' },
 };
 
 /** Tributos que a EMPRESA apura (fora da cotação do banco), em estimativa simplificada sobre o valor em reais. */
@@ -110,7 +117,7 @@ export const EXPORTACAO = [
   { titulo: 'ICMS, IPI, PIS e Cofins na sua exportação', texto: 'NF-e 4834 (Peru, CFOP 7101, 20/03/2026): ICMS "não tributado" (CF, art. 155, §2º, X, "a"), IPI imune (CF, art. 153, §3º, III) e PIS/Cofins zerados. É o que a nota mostra: créditos e benefícios (por exemplo, Reintegra) não aparecem nela.', status: 'observado' },
   { titulo: 'Recebimento da exportação', texto: 'A NF-e está em reais, com prazo de 30 dias ("CREDPLUS"). Falta a invoice comercial em moeda estrangeira e o contrato de câmbio do recebimento para conferir a taxa e o IOF zero na prática.', status: 'confirmar' },
   { titulo: 'Devolução de exportação', texto: 'NF-e de entrada 4851 (CFOP 3201, 24/03/2026) devolveu a NF 4760 do mesmo cliente do Peru, com todos os tributos zerados. O câmbio de uma devolução em moeda estrangeira (finalidade, IOF e IR) não foi pesquisado.', status: 'confirmar' },
-  { titulo: 'Reintegra', texto: 'Devolução de resíduos tributários a exportadores, com alíquota entre 0,1% e 3% definida pelo Executivo (o STF discute a variação). A alíquota de 2026 e o direito da Lake ao benefício não foram confirmados.', status: 'confirmar', fontes: ['reintegra'] },
+  { titulo: 'Reintegra', texto: 'Devolução de resíduos tributários a exportadores, com alíquota entre 0,1% e 3% definida pelo Executivo (o STF discute a variação). O Decreto 12.565/2025 elevou a alíquota para 3% só para MEI, microempresas e empresas de pequeno porte; a alíquota de 2026 para Lucro Real e o direito da Lake ao benefício não foram confirmados.', status: 'confirmar', fontes: ['reintegra'] },
   { titulo: 'Imposto de importação nos países de destino', texto: 'Depende do país e do acordo comercial (Mercosul/ALADI) e costuma exigir certificado de origem. Ainda não pesquisei por país para o NCM 3824.99.79.', status: 'confirmar' },
 ];
 

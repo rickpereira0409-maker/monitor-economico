@@ -25,7 +25,7 @@ test('Argentina e Chile: tratado dá faixa (irMin) e serviço não técnico fica
   const as = sugerirIR('Argentina', 'servico');
   assert.equal(as.ir, 25); assert.equal(as.irMin, 0); assert.equal(as.status, 'confirmar');
   const ct = sugerirIR('Chile', 'tecnico');
-  assert.equal(ct.ir, 15); assert.equal(ct.irMin, 10); assert.equal(ct.status, 'confirmar');
+  assert.equal(ct.ir, 15); assert.equal(ct.irMin, 10); assert.equal(ct.status, 'texto', 'item 5 do protocolo de 2001 lido literalmente');
   assert.equal(sugerirIR('Chile', 'royalties').status, 'texto');
 });
 
@@ -35,6 +35,19 @@ test('Colômbia e Outro país usam a regra interna, marcados como a confirmar', 
   assert.equal(sugerirIR('Colômbia', 'servico').ir, 25);
   const o = sugerirIR('Outro país', 'tecnico');
   assert.equal(o.ir, 15); assert.equal(o.status, 'confirmar');
+});
+
+test('Peru: tratado em vigor equipara serviços técnicos e consultorias a royalties, teto de 15%', () => {
+  const t = sugerirIR('Peru', 'tecnico');
+  assert.equal(t.ir, 15); assert.equal(t.status, 'texto'); assert.deepEqual(t.fontes, ['peru', 'adi5']);
+  assert.equal(sugerirIR('Peru', 'royalties').ir, 15);
+  const s = sugerirIR('Peru', 'servico');
+  assert.equal(s.ir, 15); assert.equal(s.irMin, 0); assert.equal(s.status, 'confirmar');
+  assert.ok(PAISES_LISTA.includes('Peru'));
+});
+
+test('Panamá: sem tratado; a nota explica o engano de uma fonte secundária', () => {
+  assert.match(sugerirIR('Panamá', 'tecnico').tratado, /Emirados/);
 });
 
 test('Bolívia segue a regra geral; mercadoria 0% a confirmar; viagem 8% pela Lei 14.537', () => {
@@ -78,13 +91,16 @@ test('calcOutros: outro serviço não paga CIDE; ISS entra quando informado; via
   assert.equal(calcOutros({ reais: 1, natureza: 'xyz' }), null);
 });
 
-test('ISS padrão de 3% (informado pelo usuário) entra em serviço, não em royalties nem viagem', () => {
+test('ISS não entra por padrão (não se aplica ao caso); se informado, vale só para serviço', () => {
   const o = calcOutros({ reais: 17314.05, natureza: 'tecnico' });
-  assert.equal(o.itens.find((i) => i.id === 'iss').valor, 519.42);
-  assert.equal(o.total, 3852.38);
-  assert.equal(calcOutros({ reais: 1000, natureza: 'royalties' }).itens.some((i) => i.id === 'iss'), false);
+  assert.equal(o.itens.some((i) => i.id === 'iss'), false);
+  assert.equal(o.total, 3332.96);
+  const c = calcOutros({ reais: 17314.05, natureza: 'tecnico', iss: 3 });
+  assert.equal(c.itens.find((i) => i.id === 'iss').valor, 519.42);
+  assert.equal(c.total, 3852.38);
+  assert.equal(calcOutros({ reais: 1000, natureza: 'royalties', iss: 3 }).itens.some((i) => i.id === 'iss'), false);
 });
 
 test('alíquotas padrão dos outros tributos', () => {
-  assert.equal(OUTROS.cide.pct, 10); assert.equal(OUTROS.pis.pct, 1.65); assert.equal(OUTROS.cofins.pct, 7.6); assert.equal(OUTROS.iss.pct, 3);
+  assert.equal(OUTROS.cide.pct, 10); assert.equal(OUTROS.pis.pct, 1.65); assert.equal(OUTROS.cofins.pct, 7.6); assert.equal(OUTROS.iss.pct, 0);
 });

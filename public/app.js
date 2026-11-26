@@ -712,7 +712,7 @@ async function viewSimulador(main) {
     h('div', { class: 'card stack' },
       h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
       h('div', { class: 'filters' }, field('País do fornecedor', paisSel), field('Natureza do pagamento', natSel)), sugestao,
-      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn, '0 = não incluir'), field('PIS-imp. (%)', pisIn, '0 = não incluir'), field('Cofins-imp. (%)', cofinsIn, '0 = não incluir'), field('ISS do município (%)', issIn, 'Informado: 3%. Use 0 para não incluir')),
+      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn, '0 = não incluir'), field('PIS-imp. (%)', pisIn, '0 = não incluir'), field('Cofins-imp. (%)', cofinsIn, '0 = não incluir'), field('ISS do município (%)', issIn, 'Não se aplica ao seu caso (0)')),
       h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
       h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,
