@@ -2,7 +2,7 @@ name: Coletar e publicar
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # o GitHub executa quando pode; atrasos de alguns minutos são normais
+    - cron: '7,22,37,52 * * * *'   # minutos fora do horário de pico do GitHub (evita atrasos e execuções descartadas)
   workflow_dispatch:
     inputs:
       teste_ntfy:
