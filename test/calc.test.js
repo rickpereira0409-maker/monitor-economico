@@ -60,5 +60,15 @@ test('simulateReceipt: exportação não paga IOF; só desconta tarifa', () => {
 test('predefinições declaram o grau de confiança de cada alíquota', () => {
   assert.ok(PRESETS.every((p) => ['observado', 'confirmado', 'a confirmar'].includes(p.status)));
   assert.equal(PRESETS.find((p) => p.id === 'exportacao').iofPct, 0);
-  assert.equal(PRESETS.find((p) => p.id === 'servico-geral').status, 'a confirmar');
+  assert.equal(PRESETS.find((p) => p.id === 'servico-geral').status, 'observado');
+});
+
+test('simulate reproduz a cotação do Banco Rendimento (serviço ao Paraguai, taxa 5,07)', () => {
+  const r = simulate({ amount: 3415, rate: 5.07, iofPct: 3.5, irPct: 15, grossUp: true, fee: 150.9 });
+  assert.equal(r.reais, 17314.05);
+  assert.equal(r.iof, 605.99);
+  assert.equal(r.ir, 3055.42, 'DARF 0422: 15% com gross-up = 17,647% sobre o líquido');
+  assert.equal(r.total, 21126.36, 'VALOR FINAL da cotação');
+  assert.equal(((r.reais + r.iof + 150.9) / 3415).toFixed(4), '5.2916', 'VET impresso (sem IR)');
+  assert.equal((15 / 85 * 100).toFixed(7), '17.6470588');
 });

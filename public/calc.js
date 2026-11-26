@@ -55,8 +55,8 @@ export function checkConfirmation({ amount, rate, reais, iof, ir, iofPct, irPct,
 export const PRESETS = [
   { id: 'xp-panama', modo: 'pagamento', nome: 'Pagamento ao exterior — como a XP cobrou em 19/11/2026 (Panamá, finalidade "Viagem internacional")', iofPct: 3.5, irPct: 8, grossUp: true, status: 'observado',
     nota: 'IOF 3,5% e IR 8% com gross-up foram os valores cobrados nessa operação. O IR depende da finalidade e do país: confirme com o contador antes de generalizar.' },
-  { id: 'servico-geral', modo: 'pagamento', nome: 'Serviço ao exterior — regra geral (IR 15%, IOF 3,5%)', iofPct: 3.5, irPct: 15, grossUp: true, status: 'a confirmar',
-    nota: 'IR 15% vem de fontes secundárias sobre a IN RFB 1.455/2014 e IOF 3,5% do Decreto 6.306 (com notas conflitantes). Tratados podem reduzir o IR. Não confirmado.' },
+  { id: 'servico-geral', modo: 'pagamento', nome: 'Serviço ao exterior — como o Rendimento cobrou (Paraguai, maio/2026, finalidade 46978)', iofPct: 3.5, irPct: 15, grossUp: true, status: 'observado',
+    nota: 'Cotação do Banco Rendimento para serviço ao Paraguai: IOF 3,5% e IR 15% com gross-up (DARF 0422, 17,647% sobre o valor líquido), mais tarifa em reais. A cotação do banco não inclui outros tributos de serviço importado (PIS/Cofins-importação, ISS, CIDE), que a empresa apura: confirme com o contador. Outros países (com tratado) podem ter alíquota diferente.' },
   { id: 'exportacao', modo: 'recebimento', nome: 'Recebimento de exportação (IOF zero)', iofPct: 0, irPct: 0, grossUp: false, status: 'confirmado',
     nota: 'IOF zero para ingresso de receitas de exportação: Decreto 6.306/2007, art. 15-B, inciso I.' },
 ];
