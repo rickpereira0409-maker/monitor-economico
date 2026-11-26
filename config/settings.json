@@ -1,0 +1,18 @@
+{
+  "_ajuda": "Edite este arquivo no GitHub (ícone de lápis) e salve: na próxima coleta (até ~15 min) as mudanças valem. Não coloque senhas aqui.",
+  "currencies": ["USD", "EUR", "CNY", "GBP", "ARS"],
+  "delivery": { "startHour": 7, "endHour": 23, "weekdaysOnly": false, "minIntervalMin": 15 },
+  "channels": { "ntfy": { "enabled": true } },
+  "digest": {
+    "daily": { "enabled": true, "hour": 8, "channels": ["inapp", "ntfy"] },
+    "weekly": { "enabled": true, "weekday": 1, "hour": 8, "channels": ["inapp", "ntfy"] }
+  },
+  "profile": { "regime": "", "setor": "", "uf": "" },
+  "rules": [
+    { "name": "Notícias de alta relevância", "type": "news", "params": { "minLevel": "alta", "topics": [], "directions": [] }, "channels": ["inapp", "ntfy"], "cooldown_min": 0 },
+    { "name": "Mudanças em propostas e normas acompanhadas", "type": "legis", "params": { "mode": "stage", "onlyCurated": true }, "channels": ["inapp", "ntfy"], "cooldown_min": 0 },
+    { "name": "Lembretes de prazos", "type": "deadline", "params": { "daysBefore": [7, 3, 1, 0] }, "channels": ["inapp", "ntfy"], "cooldown_min": 0 },
+    { "name": "Dólar comercial: variação de 1% em 1 hora", "type": "pct_move", "params": { "code": "USD", "rate_type": "comercial", "pct": 1, "windowMin": 60 }, "channels": ["inapp", "ntfy"], "cooldown_min": 120 }
+  ],
+  "deadlines": []
+}

@@ -1,0 +1,74 @@
+name: Coletar e publicar
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # o GitHub executa quando pode; atrasos de alguns minutos são normais
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: coletar
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restaurar estado (branch "data")
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git clone --depth 1 --branch data "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" state
+            rm -rf state/.git
+          else
+            mkdir state
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Coletar, avaliar alertas e notificar
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PUBLIC_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          STATE_DIR: state
+          SITE_DIR: site
+        run: node scripts/collect.js
+
+      - name: Salvar estado (branch "data", sem acumular histórico)
+        run: |
+          cd state
+          git init -q -b data
+          git config user.name "monitor-bot"
+          git config user.email "monitor-bot@users.noreply.github.com"
+          git add monitor.db
+          git commit -q -m "estado $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data
+
+      - name: Montar o app
+        run: |
+          cp -r public/. site/
+          echo '{"static":true}' > site/mode.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
