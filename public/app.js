@@ -531,7 +531,8 @@ async function viewSimulador(main) {
   const incluirOutros = h('input', { type: 'checkbox', checked: false });
   const cideIn = num(OUTROS.cide.pct), pisIn = num(OUTROS.pis.pct), cofinsIn = num(OUTROS.cofins.pct), issIn = num(OUTROS.iss.pct);
   const fonte = h('select', null);
-  const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
+  const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0), tarifaME = num(0), qtdServ = num(1, { min: 1 });
+  const feeBrl = (rate) => (+tarifa.value || 0) + (+tarifaME.value || 0) * (Math.max(1, Math.round(+qtdServ.value) || 1)) * rate;
   const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const dataCambio = h('input', { type: 'date', value: hojeSP });
   const ptaxNote = h('span', { class: 'muted small' });
@@ -568,14 +569,14 @@ async function viewSimulador(main) {
     if (!(amount > 0) || !(rate > 0)) { out.replaceChildren(h('p', { class: 'muted' }, 'Informe o valor e a taxa para ver o custo.')); return null; }
     let res;
     if (modo.value === 'recebimento') {
-      const r = simulateReceipt({ amount, rate, fee: +tarifa.value || 0, iofPct: +iofPct.value || 0 });
+      const r = simulateReceipt({ amount, rate, fee: feeBrl(rate), iofPct: +iofPct.value || 0 });
       res = r;
       out.replaceChildren(h('h3', null, 'Quanto você recebe'), h('table', { class: 't' }, h('tbody', null,
         row('Taxa aplicada', `R$ ${fmtNum(rate, decimals())}`), row('Valor bruto em reais', brl(r.reais)), row('IOF', brl(r.iof)), row('Tarifa', brl(r.fee)),
         row('Você recebe (líquido)', brl(r.liquido), true), row('Taxa efetiva por unidade', `R$ ${fmtNum(r.taxaEfetiva, 4)}`))),
       h('p', { class: 'muted small' }, 'Exportação: IOF zero para receitas de exportação (Decreto 6.306, art. 15-B, I). Spread do banco entra na taxa informada.'));
     } else {
-      const r = simulate({ amount, rate, iofPct: +iofPct.value || 0, irPct: +irPct.value || 0, grossUp: gross.checked, fee: +tarifa.value || 0 });
+      const r = simulate({ amount, rate, iofPct: +iofPct.value || 0, irPct: +irPct.value || 0, grossUp: gross.checked, fee: feeBrl(rate) });
       res = r;
       out.replaceChildren(h('h3', null, 'Quanto custa'), h('table', { class: 't' }, h('tbody', null,
         row('Taxa aplicada', `R$ ${fmtNum(rate, decimals())}`), row('Valor em reais (valor × taxa)', brl(r.reais)), row(`IOF (${fmtNum(+iofPct.value || 0, 2)}%)`, brl(r.iof)),
@@ -626,7 +627,7 @@ async function viewSimulador(main) {
     nota.replaceChildren(chip(p.status === 'a confirmar' ? 'A CONFIRMAR' : p.status === 'observado' ? 'Observado em operação real' : 'Confirmado no texto oficial', p.status === 'a confirmar' ? 'warn' : 'ok'), ' ', p.nota);
     compute();
   };
-  for (const el of [modo, fonte, valor, taxa, spread, tarifa, iofPct, irPct, gross, dataCambio]) el.addEventListener('input', compute);
+  for (const el of [modo, fonte, valor, taxa, spread, tarifa, tarifaME, qtdServ, iofPct, irPct, gross, dataCambio]) el.addEventListener('input', compute);
   moeda.addEventListener('input', () => { refreshFonte(); loadPtax(); });
   preset.addEventListener('input', () => { paisSel.value = ''; natSel.value = ''; sugestao.replaceChildren(); applyPreset(); });
   for (const el of [paisSel, natSel]) el.addEventListener('input', applySugestao);
@@ -715,7 +716,7 @@ async function viewSimulador(main) {
       h('div', { class: 'filters' }, field('País do fornecedor', paisSel), field('Natureza do pagamento', natSel)), sugestao,
       h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar também CIDE/PIS/Cofins (opcional; a conferência padrão é só IRRF + IOF)'), field('CIDE (%)', cideIn, '0 = não incluir'), field('PIS-imp. (%)', pisIn, '0 = não incluir'), field('Cofins-imp. (%)', cofinsIn, '0 = não incluir'), field('ISS do município (%)', issIn, 'Não se aplica ao seu caso (0)')),
       h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
-      h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
+      h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), field('Tarifa por serviço (na moeda, ex.: 30)', tarifaME, 'Convertida pela taxa e somada ao total'), field('Nº de serviços', qtdServ), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,
     h('div', { class: 'card stack' }, h('h3', null, 'Guardar o que o banco cobrou'), h('p', { class: 'small muted' }, 'Registra só percentuais, país e finalidade neste aparelho (não vai para o GitHub). Serve de tabela de consulta para as próximas cotações.'),
       h('div', { class: 'filters' }, field('País', pais), field('Finalidade / natureza', fin), salvar)),

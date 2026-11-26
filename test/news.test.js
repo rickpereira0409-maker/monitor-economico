@@ -103,3 +103,12 @@ test('parseFeed: RSS, Atom, CDATA e HTML escapado', () => {
   assert.equal(b.link, 'https://bcb.gov.br/n/1'); assert.equal(b.summary, 'corpo'); assert.equal(b.published, '2026-11-24T14:06:14.000Z');
   assert.deepEqual(parseFeed('<rss><channel></channel></rss>'), []);
 });
+
+test('soAnoPassado: retrospectiva de 2025 em 2026 cai; norma 214/2025 e anos atuais passam', async () => {
+  const { soAnoPassado } = await import('../src/collectors/news.js');
+  const now = new Date('2026-11-26T12:00:00Z');
+  assert.equal(soAnoPassado('Financiamento cresceu em 2025', now), true);
+  assert.equal(soAnoPassado('Regulamentação da LC 214/2025 avança', now), false);
+  assert.equal(soAnoPassado('Dólar em 2026: projeção', now), false);
+  assert.equal(soAnoPassado('Dólar fecha em alta', now), false);
+});

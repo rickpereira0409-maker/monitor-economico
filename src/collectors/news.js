@@ -8,6 +8,13 @@ const ALERT_WINDOW_H = 48;    // só gera evento de alerta para notícias public
 
 const cleanTitle = (title, publisher) => (publisher ? title.replace(new RegExp(`\\s[-–|]\\s${publisher.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i'), '') : title);
 
+/** Título que fala só de anos passados (ex.: "cresceu em 2025") enquanto estamos em outro ano: retrospectiva, não notícia do momento. Ignora números de norma (214/2025). */
+export function soAnoPassado(title, now = new Date()) {
+  const atual = +now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 4);
+  const anos = [...String(title).matchAll(/(?<![\/\d])(20\d\d)(?!\d)(?!\s*\/)/g)].map((m) => +m[1]);
+  return anos.length > 0 && anos.every((a) => a < atual);
+}
+
 /**
  * Processa um item de feed. Retorna: 'nova' | 'duplicada' | 'republicacao' | 'ajuste_menor' | 'atualizacao' | 'irrelevante' | 'antiga'.
  */
@@ -17,6 +24,8 @@ export function ingestNewsItem(db, feed, item, now = new Date()) {
   const source = feed.aggregator ? (publisher || feed.name) : feed.name;
   const published = item.published;
   if (published && now - new Date(published) > MAX_AGE_DAYS * 86400e3) return 'antiga';
+  if (published && new Date(published).getUTCFullYear() < +now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 4)) return 'antiga'; // só notícias do ano corrente
+  if (!feed.official && soAnoPassado(title, now)) return 'antiga';
   if (published && new Date(published) - now > 36 * 3600e3) return 'irrelevante'; // data no futuro: feed com erro
 
   const analysis = analyzeNews({ title, summary: item.summary, source, url: item.link, publishedAt: published, official: !!feed.official, region: feed.region }, now, feed.forceTopic);
