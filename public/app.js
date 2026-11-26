@@ -527,7 +527,8 @@ async function viewSimulador(main) {
   const paisSel = h('select', null, [['', 'Selecione o país'], ...PAISES_LISTA.map((p) => [p, p])].map(([v, l]) => h('option', { value: v }, l)));
   const natSel = h('select', null, [['', 'Selecione a natureza'], ...Object.entries(NATUREZAS).map(([k, n]) => [k, n.label])].map(([v, l]) => h('option', { value: v }, l)));
   const sugestao = h('div', { class: 'small stack' });
-  const incluirOutros = h('input', { type: 'checkbox', checked: true });
+  // Regra do usuário: na conferência da cotação de envio só entram IRRF e IOF; CIDE/PIS/Cofins só se ele pedir.
+  const incluirOutros = h('input', { type: 'checkbox', checked: false });
   const cideIn = num(OUTROS.cide.pct), pisIn = num(OUTROS.pis.pct), cofinsIn = num(OUTROS.cofins.pct), issIn = num(OUTROS.iss.pct);
   const fonte = h('select', null);
   const valor = num(1000), taxa = num(''), spread = num(0, { min: -50 }), tarifa = num(0);
@@ -712,7 +713,7 @@ async function viewSimulador(main) {
     h('div', { class: 'card stack' },
       h('div', { class: 'filters' }, field('Tipo de operação', modo), field('Predefinição', preset)), nota,
       h('div', { class: 'filters' }, field('País do fornecedor', paisSel), field('Natureza do pagamento', natSel)), sugestao,
-      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar tributos da empresa'), field('CIDE (%)', cideIn, '0 = não incluir'), field('PIS-imp. (%)', pisIn, '0 = não incluir'), field('Cofins-imp. (%)', cofinsIn, '0 = não incluir'), field('ISS do município (%)', issIn, 'Não se aplica ao seu caso (0)')),
+      h('div', { class: 'filters' }, h('label', { class: 'check' }, incluirOutros, 'Estimar também CIDE/PIS/Cofins (opcional; a conferência padrão é só IRRF + IOF)'), field('CIDE (%)', cideIn, '0 = não incluir'), field('PIS-imp. (%)', pisIn, '0 = não incluir'), field('Cofins-imp. (%)', cofinsIn, '0 = não incluir'), field('ISS do município (%)', issIn, 'Não se aplica ao seu caso (0)')),
       h('div', { class: 'filters' }, field('Moeda', moeda), field('Taxa de referência', fonte), field('Spread do banco sobre a referência (%)', spread, 'Só vale para PTAX/comercial/turismo'), field('Taxa do banco (se informar)', taxa), field('Data do câmbio', dataCambio, 'Define a PTAX usada'), ptaxNote),
       h('div', { class: 'filters' }, field('Valor em moeda estrangeira', valor), field('IOF (%)', iofPct), field('IR (%)', irPct), field('Tarifas (R$)', tarifa), h('label', { class: 'check' }, gross, 'IR por conta do devedor (gross-up)'))),
     out,
